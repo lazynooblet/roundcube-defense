@@ -41,7 +41,7 @@ class defense extends rcube_plugin {
     */
     private function isIPinArray($ip, $array) {
         foreach ($array as $value) {
-            if (strpos($value, '/') === false) && ($ip == $value) { return true; }
+            if ((strpos($value, '/') === false) && ($ip == $value)) { return true; }
             if (isIPinCIDR($ip, $value)) { return true; }
         }
         return false;
