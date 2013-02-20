@@ -99,12 +99,12 @@ class defense extends rcube_plugin {
     */
     public function hookLoginForm($content) {
         // If IP is listed in whitelist, return unmodified $content
-        if (isIPinArray($this->ipaddr, $this->whitelist)) {
+        if ($this->isIPinArray($this->ipaddr, $this->whitelist)) {
             return $content;
         }
         
         // If IP is listed in blacklist, deny access
-        if (isIPinArray($this->ipaddr, $this->blacklist)) {
+        if ($this->isIPinArray($this->ipaddr, $this->blacklist)) {
             header('HTTP/1.1 403 Forbidden');
             die();
         }
