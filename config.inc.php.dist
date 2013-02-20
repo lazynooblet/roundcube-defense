@@ -18,10 +18,15 @@
  *  along with roundcube-defense.  If not, see <http://www.gnu.org/licenses/>.
  */
 
- // Whitelist and blacklist (processed in that order)
- // Example: array('10.0.0.1', '192.168.0.1/24', '172.16.0.0/12');
+ /* Whitelist and blacklist (processed in that order)
+  * Whitelisted IPs will never be banned
+  * Blacklisted IPs will receive HTTP 403 Forbidden
+  * Example: array('10.0.0.1', '192.168.0.1/24', '172.16.0.0/12');
+  * To only allow access to whitelisted IPs, set blacklist to: array('0.0.0.0/0');
+  */
  $rcmail_config['defense_whitelist'] = array('127.0.0.1');
  $rcmail_config['defense_blacklist'] = array();
+ 
  
  /* IP is banned when there are <defense_fail_max> failed
   * login attempts within <defense_fail_reset> seconds */
