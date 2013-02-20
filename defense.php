@@ -76,6 +76,7 @@ class defense extends rcube_plugin {
         $this->fail_max = $this->rc->config->get('defense_fail_max', 5);
         $this->fail_reset = $this->rc->config->get('defense_fail_reset', 600);
         $this->ban_period = $this->rc->config->get('defense_ban_period', 120);
+        $this->ban_httpstatus = $this->rc->config->get('defense_ban_httpstatus', false);
         $this->repeat_multiplier = $this->rc->config->get('defense_repeat_multiplier', 4);
         $this->repeat_reset = $this->rc->config->get('defense_repeat_reset', 86400);
         $this->db_table = $this->rc->config->get('defense_db_table', 'defense');

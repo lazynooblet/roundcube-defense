@@ -40,6 +40,13 @@
  // Default ban period
  $rcmail_config['defense_ban_period'] = 120;
 
+ /* Ban with HTTP status
+  * If set to true: Banned IPs are treated as blacklisted, and will receive
+  *     a HTTP 403 Forbidden response instead of a login screen
+  * If set to false (default): Banned IPs receive login screen with red warning
+  *     showing duration of ban remaining */
+ $rcmail_config['defense_ban_httpstatus'] = false;
+ 
  // Repeated offenders have their banperiod multiplied, set to 1 to not multiply
  $rcmail_config['defense_repeat_multiplier'] = 4;
 
