@@ -39,7 +39,7 @@ class defense extends rcube_plugin {
     * @param array ip/cidr addresses to match against
     * @return bool
     */
-    private isIPinArray($ip, $array) {
+    private function isIPinArray($ip, $array) {
         foreach ($array as $value) {
             if (strpos($value, '/') === false) && ($ip == $value) { return true; }
             if (isIPinCIDR($ip, $value)) { return true; }
@@ -53,7 +53,7 @@ class defense extends rcube_plugin {
     * @param string cidr address
     * @return bool
     */
-    private isIPinCIDR($ip, $cidr) {
+    private function isIPinCIDR($ip, $cidr) {
         list($subnet, $mask) = explode('/', $cidr);
         return ((ip2long($ip) & ~((1 << (32 - $mask)) - 1) ) == ip2long($subnet));
     }
