@@ -1,0 +1,48 @@
+<?php
+/*
+ *  This file is part of the Roundcube plugin: roundcube-defense.
+ *
+ *  @author Steve Allison <roundcube-defense@nooblet.org>
+ *
+ *  roundcube-defense is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  roundcube-defense is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with roundcube-defense.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+ // Whitelist and blacklist (processed in that order)
+ // Example: array('10.0.0.1', '192.168.0.1/24', '172.16.0.0/12');
+ $rcmail_config['defense_whitelist'] = array('127.0.0.1');
+ $rcmail_config['defense_blacklist'] = array();
+ 
+ /* IP is banned when there are <defense_maxfail> failed
+  * login attempts in <defense_resetfail> seconds */
+  
+ // Number of failed attempts until ban
+ $rcmail_config['defense_fail_max'] = 5;
+ 
+ // Reset fail counter after this number of seconds
+ $rcmail_config['defense_fail_reset'] = 600;
+ 
+ // Default ban period
+ $rcmail_config['defense_ban_period'] = 120;
+ 
+ // Repeated offenders have their banperiod multiplied
+ $rcmail_config['defense_repeat_multiplier'] = 4;
+ 
+ // Reset repeat offender count after this number of seconds or
+ // multiply last ban period by <defense_repeat_multiplier>, whichever is greater
+ $rcmail_config['defense_repeat_reset'] = 86400;
+
+ // Name of table in database
+ $rcmail_config['defense_dbtable'] = 'defense';
+ 
+?>
