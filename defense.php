@@ -71,8 +71,6 @@ class defense extends rcube_plugin {
         $this->load_config();
         
         // set config variables, set defaults
-        $this->whitelist = $this->rc->config->get('defense_whitelist', array('127.0.0.1'));
-        $this->blacklist = $this->rc->config->get('defense_blacklist', array());
         $this->fail_max = $this->rc->config->get('defense_fail_max', 5);
         $this->fail_reset = $this->rc->config->get('defense_fail_reset', 600);
         $this->ban_period = $this->rc->config->get('defense_ban_period', 120);
@@ -99,6 +97,11 @@ class defense extends rcube_plugin {
     * @return string Login form HTML
     */
     public function hookLoginForm($content) {
+    
+        // set config variables, set defaults
+        $this->whitelist = $this->rc->config->get('defense_whitelist', array('127.0.0.1'));
+        $this->blacklist = $this->rc->config->get('defense_blacklist', array());
+    
         // If IP is listed in whitelist, return unmodified $content
         if ($this->isIPinArray($this->ipaddr, $this->whitelist)) {
             return $content;
