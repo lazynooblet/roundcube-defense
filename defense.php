@@ -125,7 +125,7 @@ class defense extends rcube_plugin {
     * @return var (untouched)
     */
     public function hookAuthenticate($args) {
-        return $args
+        return $args;
     }
     
   /**
