@@ -23,10 +23,10 @@
  $rcmail_config['defense_whitelist'] = array('127.0.0.1');
  $rcmail_config['defense_blacklist'] = array();
  
- /* IP is banned when there are <defense_maxfail> failed
-  * login attempts in <defense_resetfail> seconds */
+ /* IP is banned when there are <defense_fail_max> failed
+  * login attempts within <defense_fail_reset> seconds */
   
- // Number of failed attempts until ban
+ // Number of failed attempts until ban. Set to 0 to never ban (why would you do that?)
  $rcmail_config['defense_fail_max'] = 5;
  
  // Reset fail counter after this number of seconds
@@ -35,7 +35,7 @@
  // Default ban period
  $rcmail_config['defense_ban_period'] = 120;
  
- // Repeated offenders have their banperiod multiplied
+ // Repeated offenders have their banperiod multiplied, set to 1 to not multiply
  $rcmail_config['defense_repeat_multiplier'] = 4;
  
  // Reset repeat offender count after this number of seconds or
@@ -43,6 +43,11 @@
  $rcmail_config['defense_repeat_reset'] = 86400;
 
  // Name of table in database
- $rcmail_config['defense_dbtable'] = 'defense';
+ $rcmail_config['defense_db_table'] = 'defense';
  
+ // Expire database entries more than X days old. Set to 0 to never expire
+ $rcmail_config['defense_db_expire'] = 30;
+ 
+ // Log attempted passwords (could be insecure, disabled by default)
+ $rcmail_config['defense_log_pwd'] = false;
 ?>
