@@ -71,13 +71,15 @@ class defense extends rcube_plugin {
         $this->load_config();
         
         // set config variables, set defaults
+        $this->db_table = $this->rc->config->get('defense_db_table', 'defense');
+        
         $this->fail_max = $this->rc->config->get('defense_fail_max', 5);
         $this->fail_reset = $this->rc->config->get('defense_fail_reset', 600);
         $this->ban_period = $this->rc->config->get('defense_ban_period', 120);
         $this->ban_httpstatus = $this->rc->config->get('defense_ban_httpstatus', false);
         $this->repeat_multiplier = $this->rc->config->get('defense_repeat_multiplier', 4);
         $this->repeat_reset = $this->rc->config->get('defense_repeat_reset', 86400);
-        $this->db_table = $this->rc->config->get('defense_db_table', 'defense');
+
         $this->db_expire = $this->rc->config->get('defense_db_expire', 40);
         $this->log_pwd = $this->rc->config->get('defense_log_pwd', false);
         
@@ -86,11 +88,12 @@ class defense extends rcube_plugin {
         
         // Roundcube event hooks
         $this->add_hook('template_object_loginform', array($this, 'hookLoginForm'));
-        $this->add_hook('authenticate', array($this, 'authenticate'));
-        $this->add_hook('login_failed', array($this, 'login_failed'));
+        $this->add_hook('authenticate', array($this, 'hookAuthenticate'));
+        $this->add_hook('login_failed', array($this, 'hookLoginFailed'));
     }
     
   /**
+    * Hooked function: login_form($content)
     * Process whitelist and blacklist
     *
     * @param string Login form HTML
@@ -112,6 +115,31 @@ class defense extends rcube_plugin {
             header('HTTP/1.1 403 Forbidden');
             die();
         }
+    }
+    
+  /**
+    * Hooked function: authenticate($host, $user, $cookiecheck, $valid)
+    * Login attempt intercepted if IP is banned.
+    *
+    * @param var (untouched)
+    * @return var (untouched)
+    */
+    public function hookAuthenticate($args) {
+        return $args
+    }
+    
+  /**
+    * Hooked function: login_failed($host, $user, $code)
+    * Log event to database
+    *
+    * @param string host
+    * @param string user
+    * @param int code
+    * 
+    */
+    public function hookLoginFailed($host, $user, $code) {
+        $query = "INSERT INTO " . $this->db_table . " (timestamp, type, src, data) VALUES (" . time() . ", 'fail', " . ip2long($this->ipaddr) . ", 'data')";
+        print $query;
     }
 }
  
