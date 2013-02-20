@@ -70,17 +70,17 @@ class roundcube-defense extends rcube_plugin {
         // load configuration
         $this->load_config();
         
-        // set config variables
+        // set config variables, set defaults
         $this->whitelist = $this->rc->config->get('defense_whitelist', array('127.0.0.1'));
         $this->blacklist = $this->rc->config->get('defense_blacklist', array());
-        $this->fail_max = $this->rc->config->get('fail_max', 5);
-        $this->fail_reset = $this->rc->config->get('fail_reset', 600);
-        $this->ban_period = $this->rc->config->get('ban_period', 120);
-        $this->repeat_multiplier = $this->rc->config->get('repeat_multiplier', 4);
-        $this->repeat_reset = $this->rc->config->get('repeat_reset', 86400);
-        $this->db_table = $this->rc->config->get('db_table', 'defense');
-        $this->db_expire = $this->rc->config->get('db_expire', 40);
-        $this->log_pwd = $this->rc->config->get('log_pwd', false);
+        $this->fail_max = $this->rc->config->get('defense_fail_max', 5);
+        $this->fail_reset = $this->rc->config->get('defense_fail_reset', 600);
+        $this->ban_period = $this->rc->config->get('defense_ban_period', 120);
+        $this->repeat_multiplier = $this->rc->config->get('defense_repeat_multiplier', 4);
+        $this->repeat_reset = $this->rc->config->get('defense_repeat_reset', 86400);
+        $this->db_table = $this->rc->config->get('defense_db_table', 'defense');
+        $this->db_expire = $this->rc->config->get('defense_db_expire', 40);
+        $this->log_pwd = $this->rc->config->get('defense_log_pwd', false);
         
         // set client ip
         $this->ipaddr = rcmail_remote_ip();
