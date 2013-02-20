@@ -18,7 +18,7 @@
  *  along with roundcube-defense.  If not, see <http://www.gnu.org/licenses/>.
  */
  
-class roundcube-defense extends rcube_plugin {
+class defense extends rcube_plugin {
     
     // Roundcube parent class
     private $rc;
