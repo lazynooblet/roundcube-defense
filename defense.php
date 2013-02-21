@@ -33,6 +33,7 @@ class defense extends rcube_plugin {
     
     // Logfile
     private $logfile = 'defense.log';
+    private $debugEnabled;
     
   /**
     * Output text to log file: $this->logfile
@@ -54,10 +55,10 @@ class defense extends rcube_plugin {
         foreach ($array as $value) {
             // If no slash '/' then its not a CIDR address and we can just string match
             if ((strpos($value, '/') === false) && (strcmp($ip, $value) == 0)) { return true; }
-            if ((isIPv6($ip)) && (!isIPv6($value))) { return false; }
-            if ((isIPv4($value)) && (!isIPv4($ip))) { return false; }
-            if ((isIPv4($ip) && ($this->isIPv4inCIDR($ip, $value))) { return true; }
-            if ((isIPv6($ip) && ($this->isIPv6inCIDR($ip, $value))) { return true; }
+            if (($this->isIPv6($ip)) && (!$this->isIPv6($value))) { return false; }
+            if (($this->isIPv4($value)) && (!$this->isIPv4($ip))) { return false; }
+            if (($this->isIPv4($ip) && ($this->isIPv4inCIDR($ip, $value)))) { return true; }
+            if (($this->isIPv6($ip) && ($this->isIPv6inCIDR($ip, $value)))) { return true; }
         }
         return false;
     }
@@ -103,9 +104,10 @@ class defense extends rcube_plugin {
     * @param string subnet mask
     * @return string byte array
     */
-    private function isIPv6inCIDR($address, $subnetAddress, $subnetMask) {
-        $binMask = IPv6MaskToByteArray($subnetMask);
-        return ($address & $binMask) == $subnetAddress;
+    private function isIPv6inCIDR($ip, $cidr) {
+        list($subnet, $mask) = explode('/', $cidr);
+        $binMask = $this->IPv6MaskToByteArray($mask);
+        return ($ip & $binMask) == $subnet;
     }
   /**
     * Check string if it is IPv6
@@ -114,7 +116,7 @@ class defense extends rcube_plugin {
     * @return bool
     */
     private function isIPv6($ip) {
-        return (((!preg_match('/^[\.\/:0-9a-f]+$/', strtolower($ip))) || (substr_count($ip, ':') < 2)) ? true : false)
+        return (((!preg_match('/^[\.\/:0-9a-f]+$/', strtolower($ip))) || (substr_count($ip, ':') < 2)) ? true : false);
     }
   /**
     * Check string if it is IPv6
@@ -123,7 +125,7 @@ class defense extends rcube_plugin {
     * @return bool
     */
     private function isIPv4($ip) {
-        return ((preg_match('/^([0-9]{1,3}\.){3}[0-9]{1,3}(\/[0-9]{1,2})?$/', $ip)) ? true : false)
+        return ((preg_match('/^([0-9]{1,3}\.){3}[0-9]{1,3}(\/[0-9]{1,2})?$/', $ip)) ? true : false);
     }
   /**
     * Write to log stating database error
@@ -159,6 +161,8 @@ class defense extends rcube_plugin {
 
         $this->db_expire = $this->rc->config->get('defense_db_expire', 40);
         $this->log_pwd = $this->rc->config->get('defense_log_pwd', false);
+        
+        $this->debug_enabled = $this->rc->config->get('defense_debug_enabled', false);
         
         // set client ip
         $this->ipaddr = rcmail_remote_ip();
@@ -196,6 +200,7 @@ class defense extends rcube_plugin {
             header('HTTP/1.1 403 Forbidden');
             die();
         }
+        $this->debug("send login form");
     }
     
   /**
@@ -221,46 +226,53 @@ class defense extends rcube_plugin {
     
         // Log failed login attempt
         $data = array('user' => $args['user']);
-        $query = "INSERT INTO " . $this->db_table . " (epoch, type, ipaddr, data) VALUES (?, ?, ?, ?)";
-        $result = $this->rc->db->query($query, time(), 0, $this->ipaddr, serialize($data));
-        if (!$result) { $this->dbError(); return; }
-        
+        $query = sprintf("INSERT INTO %s (epoch, type, ipaddr, data) VALUES (%d, %d, '%s', '%s')", $this->db_table, time(), 0, $this->ipaddr, serialize($data));
+        $result = $this->rc->db->query($query);
+        if (!$result) { $this->dbError($query); return; }
+        $this->debug($query . " [" . $result->rowCount() . "]");
         // Get number of failed attempts in <fail_reset> seconds
         $rTime = (time() - $this->fail_reset); // How far to look back for failed logins
-        $query = "SELECT count(*) AS n FROM " . $this->db_table . " WHERE ipaddr = ? AND epoch >= ?";
-        $result = $this->rc->db->query($query, $this->ipaddr, $rTime);
-        if (!$result) { $this->dbError(); return; }
+        $query = sprintf("SELECT count(*) AS n FROM %s WHERE ipaddr = '%s' AND epoch >= %d", $this->db_table, $this->ipaddr, $rTime);
+        $result = $this->rc->db->query($query);
+        if (!$result) { $this->dbError($query); return; }
+        $this->debug($query . " [" . $result->rowCount() . "]");
         $row = $result->fetch();
-        if (!$row) { return; } // No rows? Strange, abort.
-
+        if (!$row) { $this->debug("Warning, SQL result empty: $query"); return; } // No rows? Strange, abort.
+        $this->debug("Found " . $row['n'] . " failed attempts");
         // Check if we have too many failures
         if ($row['n'] >= $this->fail_max) {
+            $this->debug("IP banned.");
             // This IP is now banned
             $repeat = 0;
             
             // Check if its been banned before
-            $query = "SELECT epoch, data FROM " . $this->db_table . " WHERE ipaddr = ? AND type = 1 ORDER BY id DESC LIMIT 1";
-            $result = $this->rc->db->query($query, $this->ipaddr);
-            if (!$result) { $this->dbError(); return; }
+            $query = sprintf("SELECT epoch, data FROM %s WHERE ipaddr = '%s' AND type = %d ORDER BY id DESC LIMIT 1", $this->db_table, $this->ipaddr, 1);
+            $result = $this->rc->db->query($query);
+            if (!$result) { $this->dbError($query); return; }
+            $this->debug($query . " [" . $result->rowCount() . "]");
             if ($result->rowCount() > 0) {
                 // IP has been banned before, check if its a recent repeat offender
                 $row = $result->fetch();
                 $data = unserialize($row['data']);
+                $this->debug("IP previous ban data: " . $row['data']);
                 // Classed as a repeate offender if IP is banned again after the previous ban duration
                 // multiplied by <repeat_multiplier>
                 if (time() <= (($data['duration'] * $this->repeat_multiplier) + $row['epoch'])) {
                         // Repeat offender, increase repeat
-                        echo "increase repeat\n";
                         $repeat = $data['repeat'] +1;
+                        $this->debug("Repeat offender. Repeat set to " . $repeat);
                 }
             }
+            $duration = ($this->ban_period * ($repeat > 0 ? pow($this->repeat_multiplier,$repeat) : 1));
             $data = array(
-                'duration' => ($this->ban_period * ($repeat > 0 ? pow($this->repeat_multiplier,$repeat) : 1)), // Ban duration based on history
+                'duration' => $duration, // Ban duration based on history
                 'repeat' => $repeat
               );
-            $query = "INSERT INTO " . $this->db_table . " (epoch, type, ipaddr, data) VALUES (?, ?, ?, ?)";
+            $query = sprintf("INSERT INTO %s (epoch, type, ipaddr, data) VALUES (%d, %d, '%s', '%s')", $this->db_table, time(), 1, $this->ipaddr, serialize($data));
             $result = $this->rc->db->query($query, time(), 1, $this->ipaddr, serialize($data));
-            if (!$result) { $this->dbError(); return; }
+            if (!$result) { $this->dbError($query); return; }
+            $this->debug($query . " [" . $result->rowCount() . "]");
+            $this->debug("Ban set to: " . $duration . "s");
             return;
         }
 
