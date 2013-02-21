@@ -41,6 +41,7 @@ class defense extends rcube_plugin {
     * @param string text for log
     */
     private function debug($string) {
+        if (!$this->debugEnabled) { return; }
         write_log($this->logfile, $this->ipaddr . " # " . $string);
     }
   /**
