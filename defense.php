@@ -132,14 +132,71 @@ class defense extends rcube_plugin {
     * Hooked function: login_failed($host, $user, $code)
     * Log event to database
     *
-    * @param string host
-    * @param string user
+    * @param array args [ code, host, user, abort ]
     * @param int code
     * 
     */
-    public function hookLoginFailed($host, $user, $code) {
-        $query = "INSERT INTO " . $this->db_table . " (timestamp, type, src, data) VALUES (" . time() . ", 'fail', " . ip2long($this->ipaddr) . ", 'data')";
-        print $query;
+    public function hookLoginFailed($args) {
+    
+        // Log failed login attempt
+        $data = array('user' => $args['user']);
+        $query = "INSERT INTO " . $this->db_table . " (epoch, type, ipaddr, data) VALUES (?, ?, ?, ?)";
+        $result = $this->rc->db->query($query, time(), 0, $this->ipaddr, serialize($data));
+        if (!$result) { write_log('error', 'defense: Error writing to database.'); return; }
+        
+        // Get number of failed attempts in <fail_reset> seconds
+        $rTime = (time() - $this->fail_reset); // How far to look back for failed logins
+        $query = "SELECT count(*) AS n FROM " . $this->db_table . " WHERE ipaddr = ? AND epoch >= ?";
+        $result = $this->rc->db->query($query, $this->ipaddr, $rTime);
+        if (!$result) { write_log('error', 'defense: Error writing to database.'); return; }
+        $row = $result->fetch();
+        if (!$row) { return; } // No rows? Strange, abort.
+
+        // Check if we have too many failures
+        if ($row['n'] >= $this->fail_max) {
+            // This IP is now banned
+            $repeat = 0;
+            
+            // Check if its been banned before
+            $query = "SELECT epoch, data FROM " . $this->db_table . " WHERE ipaddr = ? AND type = 1 ORDER BY id DESC LIMIT 1";
+            $result = $this->rc->db->query($query, $this->ipaddr);
+            if (!$result) { write_log('error', 'defense: Error writing to database.'); return; }
+            if ($result->rowCount() > 0) {
+                // IP has been banned before, check if its a recent repeat offender
+                $row = $result->fetch();
+                $data = unserialize($row['data']);
+                // Classed as a repeate offender if IP is banned again after the previous ban duration
+                // multiplied by <repeat_multiplier>
+                if (time() <= (($data['duration'] * $this->repeat_multiplier) + $row['epoch'])) {
+                        // Repeat offender, increase repeat
+                        echo "increase repeat\n";
+                        $repeat = $data['repeat'] +1;
+                }
+            }
+            $data = array(
+                'duration' => ($this->ban_period * ($repeat > 0 ? pow($this->repeat_multiplier,$repeat) : 1)), // Ban duration based on history
+                'repeat' => $repeat
+              );
+            $query = "INSERT INTO " . $this->db_table . " (epoch, type, ipaddr, data) VALUES (?, ?, ?, ?)";
+            $result = $this->rc->db->query($query, time(), 1, $this->ipaddr, serialize($data));
+            if (!$result) { write_log('error', 'defense: Error writing to database.'); return; }
+            return;
+        }
+
+
+        
+    }
+    
+    
+  /**
+    * Return true if logs indicate given IP is banned
+    *
+    * @param string ip
+    * @return bool
+    * 
+    */
+    public function isBanned($ip) {
+        $query = "SELECT count(id) FROM " . $this->db_table . " WHERE ip = ? AND ";
     }
 }
  
