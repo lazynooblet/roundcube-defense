@@ -16,6 +16,8 @@ FEATURES
 - Failed logins log [TODO: Logs are in DB, but no interface yet]
     - Only accessible by administrator
 
+![Example](http://i.imgur.com/caJQC3I.png)
+    
 INSTALLATION
 --------------------
 1. Change to plugins/ directory
