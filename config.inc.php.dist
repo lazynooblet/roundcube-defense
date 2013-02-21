@@ -52,8 +52,8 @@
 
  // Reset repeat offender count after this number of seconds or
  // multiply last ban period by <defense_repeat_multiplier>, whichever is greater
-
  $rcmail_config['defense_repeat_reset'] = 86400;
+ 
  // Name of table in database
  $rcmail_config['defense_db_table'] = 'defense';
 
