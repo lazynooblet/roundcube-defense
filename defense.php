@@ -42,7 +42,7 @@ class defense extends rcube_plugin {
     private function isIPinArray($ip, $array) {
         foreach ($array as $value) {
             if ((strpos($value, '/') === false) && ($ip == $value)) { return true; }
-            if ($this->isIPinCIDR($ip, $value)) { return true; }
+            if ($this->isIPv4inCIDR($ip, $value)) { return true; }
         }
         return false;
     }
@@ -53,13 +53,22 @@ class defense extends rcube_plugin {
     * @param string cidr address
     * @return bool
     */
-    private function isIPinCIDR($ip, $cidr) {
+    private function isIPv4inCIDR($ip, $cidr) {
         list($subnet, $mask) = explode('/', $cidr);
         return ((ip2long($ip) & ~((1 << (32 - $mask)) - 1) ) == ip2long($subnet));
     }
+  /**
+    * Check string if it is ipv6
+    *
+    * @param string ip address
+    * @return bool
+    */
+    private function isIPv6($ip) {
+        return (((!preg_match('/[\.\/:0-9a-f]/', strtolower($ip))) || (substr_count($ip, ':') < 2)) ? true : false)
+    }
     
   /**
-    * Contructor, initialization
+    * Constructor, initialization
     *
     */
     public function init() {
