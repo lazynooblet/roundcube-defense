@@ -201,7 +201,9 @@ class defense extends rcube_plugin {
             header('HTTP/1.1 403 Forbidden');
             die();
         }
-        $this->debug("send login form");
+        
+        $this->debug("Sending login form");
+        return $content
     }
     
   /**
@@ -273,7 +275,6 @@ class defense extends rcube_plugin {
             $result = $this->rc->db->query($query, time(), 1, $this->ipaddr, serialize($data));
             if (!$result) { $this->dbError($query); return; }
             $this->debug($query . " [" . $result->rowCount() . "]");
-            $this->debug("Ban set to: " . $duration . "s");
             return;
         }
 
