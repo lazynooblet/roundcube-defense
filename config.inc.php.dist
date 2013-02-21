@@ -62,4 +62,7 @@
 
  // Log attempted passwords (could be insecure, disabled by default)
  $rcmail_config['defense_log_pwd'] = false;
+ 
+ // Enable debug log to logs/defense.log
+ $rcmail_config['defense_debug_enabled'] = false;
 ?>
