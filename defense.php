@@ -31,14 +31,16 @@ class defense extends rcube_plugin {
     // Remote client IP address
     private $ipaddr;
     
-    // Logfile
+    
+    // Debug log
     private $logfile = 'defense.log';
     private $debugEnabled;
     
   /**
     * Output text to log file: $this->logfile
     *
-    * @param string text for log
+    * @param string
+    *       text for log
     */
     private function debug($string) {
         if (!$this->debugEnabled) { return; }
@@ -48,8 +50,10 @@ class defense extends rcube_plugin {
     * Check if IP is matched against all IPs in array,
     * including CIDR matches
     *
-    * @param string ip address
-    * @param array ip/cidr addresses to match against
+    * @param string
+    *       ip address
+    * @param array
+    *       ip/cidr addresses to match against
     * @return bool
     */
     private function isIPinArray($ip, $array) {
@@ -66,8 +70,10 @@ class defense extends rcube_plugin {
   /**
     * Check if IPv4 is within stated CIDR address
     *
-    * @param string ip address
-    * @param string cidr address
+    * @param string
+    *       ip address
+    * @param string
+    *       cidr address
     * @return bool
     */
     private function isIPv4inCIDR($ip, $cidr) {
@@ -77,8 +83,9 @@ class defense extends rcube_plugin {
   /**
     * Convert IPv6 mask to bytearray
     *
-    * @param string subnet mask
-    * @return string byte array
+    * @param string
+    *       subnet mask
+    * @return string
     */
     private function IPv6MaskToByteArray($subnetMask) {
         $addr = str_repeat("f", $subnetMask / 4);
@@ -102,8 +109,9 @@ class defense extends rcube_plugin {
   /**
     * Check if IPv6 is within stated CIDR address
     *
-    * @param string subnet mask
-    * @return string byte array
+    * @param string
+    *       subnet mask
+    * @return bool
     */
     private function isIPv6inCIDR($ip, $cidr) {
         list($subnet, $mask) = explode('/', $cidr);
@@ -113,7 +121,8 @@ class defense extends rcube_plugin {
   /**
     * Check string if it is IPv6
     *
-    * @param string ip address
+    * @param string
+    *       ip address
     * @return bool
     */
     private function isIPv6($ip) {
@@ -122,7 +131,8 @@ class defense extends rcube_plugin {
   /**
     * Check string if it is IPv6
     *
-    * @param string ip address
+    * @param string
+    *       ip address
     * @return bool
     */
     private function isIPv4($ip) {
@@ -138,6 +148,39 @@ class defense extends rcube_plugin {
         $this->debug($string);
         write_log('error', 'plugin::defense: ' . $string);
     }
+  /**
+    * Return true if IP matches config whitelist
+    *
+    * @param string
+    *       ip address
+    * @return bool
+    */
+    private function isWhitelisted($ip) {
+        $this->whitelist = $this->rc->config->get('defense_whitelist', array('127.0.0.1'));
+        // If IP is listed in whitelist, return true
+        if ($this->isIPinArray($this->ipaddr, $this->whitelist)) {
+            $this->debug("whitelisted");
+            return $true;
+        }
+        return false;
+    }
+  /**
+    * Return true if IP matches config blacklist
+    *
+    * @param string
+    *       ip address
+    * @return bool
+    */
+    private function isBlacklisted($ip) {
+        $this->blacklist = $this->rc->config->get('defense_blacklist', array());
+        // If IP is listed in blacklist, return true
+        if ($this->isIPinArray($this->ipaddr, $this->blacklist)) {
+            $this->debug("blacklisted");
+            return $true;
+        }
+        return false;
+    }
+    
   /**
     * Constructor, initialization
     *
@@ -163,7 +206,7 @@ class defense extends rcube_plugin {
         $this->db_expire = $this->rc->config->get('defense_db_expire', 40);
         $this->log_pwd = $this->rc->config->get('defense_log_pwd', false);
         
-        $this->debug_enabled = $this->rc->config->get('defense_debug_enabled', false);
+        $this->debugEnabled = $this->rc->config->get('defense_debug_enabled', false);
         
         // set client ip
         $this->ipaddr = rcmail_remote_ip();
@@ -180,38 +223,34 @@ class defense extends rcube_plugin {
     * Hooked function: login_form($content)
     * Process whitelist and blacklist
     *
-    * @param string Login form HTML
-    * @return string Login form HTML
+    * @param string
+    *       Login form HTML content
+    * @return string
+    *       Login form HTML content
     */
     public function hookLoginForm($content) {
     
-        // set config variables, set defaults
-        $this->whitelist = $this->rc->config->get('defense_whitelist', array('127.0.0.1'));
-        $this->blacklist = $this->rc->config->get('defense_blacklist', array());
-    
         // If IP is listed in whitelist, return unmodified $content
-        if ($this->isIPinArray($this->ipaddr, $this->whitelist)) {
-            $this->debug("whitelisted");
+        if ($this->isWhitelisted($this->ipaddr)) {
             return $content;
         }
         
         // If IP is listed in blacklist, deny access
-        if ($this->isIPinArray($this->ipaddr, $this->blacklist)) {
-            $this->debug("blacklisted");
+        if ($this->isBlacklisted($this->ipaddr)) {
             header('HTTP/1.1 403 Forbidden');
             die();
         }
         
         $this->debug("Sending login form");
-        return $content
+        return $content;
     }
     
   /**
     * Hooked function: login_failed($host, $user, $code)
     * Log event to database
     *
-    * @param array args [ code, host, user, abort ]
-    * @param int code
+    * @param array
+    *       [code, host, user, abort]
     * 
     */
     public function hookLoginFailed($args) {
@@ -238,7 +277,7 @@ class defense extends rcube_plugin {
             $repeat = 0;
             
             // Check if its been banned before
-            $query = sprintf("SELECT epoch, data FROM %s WHERE ipaddr = '%s' AND type = %d ORDER BY id DESC LIMIT 1", $this->db_table, $this->ipaddr, 1);
+            $query = sprintf("SELECT * FROM %s WHERE ipaddr = '%s' AND type = %d ORDER BY id DESC LIMIT 1", $this->db_table, $this->ipaddr, 1);
             $result = $this->rc->db->query($query);
             if (!$result) { $this->dbError($query); return; }
             $this->debug($query . " [" . $result->rowCount() . "]");
@@ -249,7 +288,8 @@ class defense extends rcube_plugin {
                 $this->debug("IP previous ban data: " . $row['data']);
                 // Classed as a repeate offender if IP is banned again after the previous ban duration
                 // multiplied by <repeat_multiplier>
-                if (time() <= (($data['duration'] * $this->repeat_multiplier) + $row['epoch'])) {
+                $bTime = (($data['duration'] * $this->repeat_multiplier) + $row['epoch']); // Multiply previous bantime by multiplier
+                if (time() <= ($bTime > $this->repeat_reset ? $bTime : $this->repeat_reset)) {
                         // Repeat offender, increase repeat
                         $repeat = $data['repeat'] +1;
                         $this->debug("Repeat offender. Repeat set to " . $repeat);
@@ -270,15 +310,45 @@ class defense extends rcube_plugin {
 
         
     }
-
+    
+  /**
+    * Fetch and return last ban for $ip
+    *
+    * @param string
+    *       ip address
+    * @return mixed
+    *       Return array with record matched, or bool(false) if no match
+    */
+    private function getPreviousBan($ip) {
+        $query = sprintf("SELECT * FROM %s WHERE ipaddr = '%s' AND type = %d ORDER BY id DESC LIMIT 1", $this->db_table, $ip, 1);
+        $result = $this->rc->db->query($query);
+        if (!$result) { $this->dbError($query); return; }
+        $this->debug($query . " [" . $result->rowCount() . "]");
+        return ($result->rowCount() > 0 ? $result->fetch() : false);
+    }
+    
+    
   /**
     * Hooked function: authenticate($host, $user, $cookiecheck, $valid)
     * Login attempt intercepted if IP is banned.
     *
-    * @param var (untouched)
-    * @return var (untouched)
+    * @param mixed
+    * @return mixed
     */
     public function hookAuthenticate($args) {
+        // Check whitelist/blacklist again, in case login form was bypassed somehow
+        
+        // If IP is listed in whitelist, return unmodified $args
+        if ($this->isWhitelisted($this->ipaddr)) {
+            return $args;
+        }
+        
+        // If IP is listed in blacklist, deny access
+        if ($this->isBlacklisted($this->ipaddr)) {
+            header('HTTP/1.1 403 Forbidden');
+            die();
+        }
+        $this->debug("Login form submitted, username: " . $args['user']);
         return $args;
     }
     
