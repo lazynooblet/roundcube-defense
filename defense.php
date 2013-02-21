@@ -331,6 +331,16 @@ class defense extends rcube_plugin {
 
         // Check if banned now that above record has been updated
         $rTime = (time() - $this->fail_reset); // How far to look back for failed logins
+        // Check if last ban lifted was within rTime
+        $row = $this->getPreviousBanData($this->ipaddr);
+        if ($row) {
+            $data = unserialize($row['data']);
+            $banLifted = $row['epoch'] + $data['duration'];
+            if ($rTime < $banLifted) {
+                // If IP was unbanned recently, only check since it was unbanned
+                $rTime = $banLifted;
+            }
+        }
         $query = sprintf("SELECT count(*) AS n FROM %s WHERE ipaddr = '%s' AND epoch >= %d", $this->db_table, $this->ipaddr, $rTime);
         $result = $this->rc->db->query($query);
         if (!$result) { $this->dbError($query); return false; }
@@ -368,9 +378,7 @@ class defense extends rcube_plugin {
             $this->debug($query . " [" . $result->rowCount() . "]");
             return $args;
         }
-
-
-        
+  
     }
     
   /**
@@ -403,7 +411,7 @@ class defense extends rcube_plugin {
             $this->rc->output->set_env('task', 'login');
             $this->rc->output->send('login');
             die();
-        }   
+        }
         $this->debug("Login form submitted, username: " . $args['user']);
         return $args;
     }
