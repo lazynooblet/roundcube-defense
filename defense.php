@@ -31,6 +31,17 @@ class defense extends rcube_plugin {
     // Remote client IP address
     private $ipaddr;
     
+    // Logfile
+    private $logfile = 'defense.log';
+    
+  /**
+    * Output text to log file: $this->logfile
+    *
+    * @param string text for log
+    */
+    private function debug($string) {
+        write_log($this->logfile, $this->ipaddr . " # " . $string);
+    }
   /**
     * Check if IP is matched against all IPs in array,
     * including CIDR matches
@@ -43,8 +54,9 @@ class defense extends rcube_plugin {
         foreach ($array as $value) {
             // If no slash '/' then its not a CIDR address and we can just string match
             if ((strpos($value, '/') === false) && (strcmp($ip, $value) == 0)) { return true; }
-            if (isIPv6($ip) != isIPv6($value)) { return false; }
-            if ((!isIPv6($ip) && ($this->isIPv4inCIDR($ip, $value))) { return true; }
+            if ((isIPv6($ip)) && (!isIPv6($value))) { return false; }
+            if ((isIPv4($value)) && (!isIPv4($ip))) { return false; }
+            if ((isIPv4($ip) && ($this->isIPv4inCIDR($ip, $value))) { return true; }
             if ((isIPv6($ip) && ($this->isIPv6inCIDR($ip, $value))) { return true; }
         }
         return false;
@@ -104,7 +116,15 @@ class defense extends rcube_plugin {
     private function isIPv6($ip) {
         return (((!preg_match('/^[\.\/:0-9a-f]+$/', strtolower($ip))) || (substr_count($ip, ':') < 2)) ? true : false)
     }
-    
+  /**
+    * Check string if it is IPv6
+    *
+    * @param string ip address
+    * @return bool
+    */
+    private function isIPv4($ip) {
+        return ((preg_match('/^([0-9]{1,3}\.){3}[0-9]{1,3}(\/[0-9]{1,2})?$/', $ip)) ? true : false)
+    }
   /**
     * Constructor, initialization
     *
