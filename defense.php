@@ -180,6 +180,30 @@ class defense extends rcube_plugin {
         }
         return false;
     }
+  /**
+    * Send forbidden (403) HTTP status header and quit
+    *
+    */
+    private function sendForbiddenHeader() {
+        if (headers_sent()) { return; } // Already sent, can't do this now
+        header('HTTP/1.1 403 Forbidden');
+        die();
+    }
+  /**
+    * Fetch and return last ban for $ip
+    *
+    * @param string
+    *       ip address
+    * @return mixed
+    *       Return array with record matched, or bool(false) if no match
+    */
+    private function getPreviousBanData($ip) {
+        $query = sprintf("SELECT * FROM %s WHERE ipaddr = '%s' AND type = %d ORDER BY id DESC LIMIT 1", $this->db_table, $ip, 1);
+        $result = $this->rc->db->query($query);
+        if (!$result) { $this->dbError($query); return false; }
+        $this->debug($query . " [" . $result->rowCount() . "]");
+        return ($result->rowCount() > 0 ? $result->fetch() : false);
+    }
     
   /**
     * Constructor, initialization
@@ -216,11 +240,12 @@ class defense extends rcube_plugin {
         $this->add_hook('authenticate', array($this, 'hookAuthenticate'));
         $this->add_hook('login_failed', array($this, 'hookLoginFailed'));
         
-        $this->debug("init() complete");
     }
     
   /**
-    * Hooked function: login_form($content)
+    * Hooked function: template_login_form(string)
+    *       http://trac.roundcube.net/wiki/Plugin_Hooks#TemplateHooks
+    *
     * Process whitelist and blacklist
     *
     * @param string
@@ -229,7 +254,6 @@ class defense extends rcube_plugin {
     *       Login form HTML content
     */
     public function hookLoginForm($content) {
-    
         // If IP is listed in whitelist, return unmodified $content
         if ($this->isWhitelisted($this->ipaddr)) {
             return $content;
@@ -241,12 +265,31 @@ class defense extends rcube_plugin {
             die();
         }
         
-        $this->debug("Sending login form");
+        if ($this->isBanned($this->ipaddr)) {
+            if ($this->ban_httpstatus) { $this->sendForbiddenHeader(); }
+            $this->debug("IP already banned");
+        }  
+        
+        $this->debug("Sending login form.");
         return $content;
     }
     
+    private function isBanned($ip) {
+        $rTime = (time() - $this->fail_reset); // How far to look back for failed logins
+        $query = sprintf("SELECT count(*) AS n FROM %s WHERE ipaddr = '%s' AND epoch >= %d", $this->db_table, $this->ipaddr, $rTime);
+        $result = $this->rc->db->query($query);
+        if (!$result) { $this->dbError($query); return false; }
+        $this->debug($query . " [" . $result->rowCount() . "]");
+        $row = $result->fetch();
+        if (!$row) { $this->debug("Warning, SQL result empty: $query"); return false; } // No rows? Strange, abort.
+        $this->debug("Found " . $row['n'] . " failed attempts in last " . $this->fail_reset . "s");
+        return (($row['n'] >= $this->fail_max) ? true : false);
+    }
+    
   /**
-    * Hooked function: login_failed($host, $user, $code)
+    * Hooked function: login_failed(array)
+    *       http://trac.roundcube.net/wiki/Plugin_Hooks#login_failed
+    *
     * Log event to database
     *
     * @param array
@@ -261,17 +304,9 @@ class defense extends rcube_plugin {
         $result = $this->rc->db->query($query);
         if (!$result) { $this->dbError($query); return; }
         $this->debug($query . " [" . $result->rowCount() . "]");
-        // Get number of failed attempts in <fail_reset> seconds
-        $rTime = (time() - $this->fail_reset); // How far to look back for failed logins
-        $query = sprintf("SELECT count(*) AS n FROM %s WHERE ipaddr = '%s' AND epoch >= %d", $this->db_table, $this->ipaddr, $rTime);
-        $result = $this->rc->db->query($query);
-        if (!$result) { $this->dbError($query); return; }
-        $this->debug($query . " [" . $result->rowCount() . "]");
-        $row = $result->fetch();
-        if (!$row) { $this->debug("Warning, SQL result empty: $query"); return; } // No rows? Strange, abort.
-        $this->debug("Found " . $row['n'] . " failed attempts");
-        // Check if we have too many failures
-        if ($row['n'] >= $this->fail_max) {
+
+        // Check if banned now that above record has been updated
+        if ($this->isBanned($this->ipaddr)) {
             $this->debug("IP banned.");
             // This IP is now banned
             $repeat = 0;
@@ -281,9 +316,9 @@ class defense extends rcube_plugin {
             $result = $this->rc->db->query($query);
             if (!$result) { $this->dbError($query); return; }
             $this->debug($query . " [" . $result->rowCount() . "]");
-            if ($result->rowCount() > 0) {
+            $row = $this->getPreviousBanData($this->ipaddr);
+            if ($row) {
                 // IP has been banned before, check if its a recent repeat offender
-                $row = $result->fetch();
                 $data = unserialize($row['data']);
                 $this->debug("IP previous ban data: " . $row['data']);
                 // Classed as a repeate offender if IP is banned again after the previous ban duration
@@ -304,7 +339,7 @@ class defense extends rcube_plugin {
             $result = $this->rc->db->query($query, time(), 1, $this->ipaddr, serialize($data));
             if (!$result) { $this->dbError($query); return; }
             $this->debug($query . " [" . $result->rowCount() . "]");
-            return;
+            return $args;
         }
 
 
@@ -312,28 +347,14 @@ class defense extends rcube_plugin {
     }
     
   /**
-    * Fetch and return last ban for $ip
+    * Hooked function: authenticate(array)
+    *       http://trac.roundcube.net/wiki/Plugin_Hooks#authenticate
     *
-    * @param string
-    *       ip address
-    * @return mixed
-    *       Return array with record matched, or bool(false) if no match
-    */
-    private function getPreviousBan($ip) {
-        $query = sprintf("SELECT * FROM %s WHERE ipaddr = '%s' AND type = %d ORDER BY id DESC LIMIT 1", $this->db_table, $ip, 1);
-        $result = $this->rc->db->query($query);
-        if (!$result) { $this->dbError($query); return; }
-        $this->debug($query . " [" . $result->rowCount() . "]");
-        return ($result->rowCount() > 0 ? $result->fetch() : false);
-    }
-    
-    
-  /**
-    * Hooked function: authenticate($host, $user, $cookiecheck, $valid)
     * Login attempt intercepted if IP is banned.
     *
-    * @param mixed
-    * @return mixed
+    * @param array
+    *       [host, user, cookiecheck, valid]
+    * @return array
     */
     public function hookAuthenticate($args) {
         // Check whitelist/blacklist again, in case login form was bypassed somehow
@@ -345,9 +366,16 @@ class defense extends rcube_plugin {
         
         // If IP is listed in blacklist, deny access
         if ($this->isBlacklisted($this->ipaddr)) {
-            header('HTTP/1.1 403 Forbidden');
-            die();
+            $this->sendForbiddenHeader();
         }
+        
+        if ($this->isBanned($this->ipaddr)) {
+            if ($this->ban_httpstatus) { $this->sendForbiddenHeader(); }
+            $this->rc->output->show_message("ip banned", 'error');
+            $this->rc->output->set_env('task', 'login');
+            $this->rc->output->send('login');
+            die();
+        }   
         $this->debug("Login form submitted, username: " . $args['user']);
         return $args;
     }
