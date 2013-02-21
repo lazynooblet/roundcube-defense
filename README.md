@@ -5,6 +5,8 @@ Protects the Roundcube login page from bruteforce login attempts.
 Original concept from the roundcube "security" plugin by Lazlo Westerhof.
 Wanting to fix the shortfalls of that plugin led me to a rewrite.
 
+Requires Roundcube 0.9-beta or higher.
+
 FEATURES
 -------------------
 - Bruteforce protection
