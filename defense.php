@@ -207,17 +207,6 @@ class defense extends rcube_plugin {
     }
     
   /**
-    * Hooked function: authenticate($host, $user, $cookiecheck, $valid)
-    * Login attempt intercepted if IP is banned.
-    *
-    * @param var (untouched)
-    * @return var (untouched)
-    */
-    public function hookAuthenticate($args) {
-        return $args;
-    }
-    
-  /**
     * Hooked function: login_failed($host, $user, $code)
     * Log event to database
     *
@@ -281,18 +270,18 @@ class defense extends rcube_plugin {
 
         
     }
-    
-    
+
   /**
-    * Return true if logs indicate given IP is banned
+    * Hooked function: authenticate($host, $user, $cookiecheck, $valid)
+    * Login attempt intercepted if IP is banned.
     *
-    * @param string ip
-    * @return bool
-    * 
+    * @param var (untouched)
+    * @return var (untouched)
     */
-    public function isBanned($ip) {
-        $query = "SELECT count(id) FROM " . $this->db_table . " WHERE ip = ? AND ";
+    public function hookAuthenticate($args) {
+        return $args;
     }
+    
 }
  
  
