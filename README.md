@@ -13,7 +13,7 @@ FEATURES
     - Increasing ban duration by power of 4 for repeated offenders (2m, 8m, 32m, 8h32m, etc)
 - Whitelist
 - Blacklist
-- Failed logins log
+- Failed logins log [TODO: Logs are in DB, but no interface yet]
     - Only accessible by administrator
 
 INSTALLATION
