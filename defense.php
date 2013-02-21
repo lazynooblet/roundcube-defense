@@ -41,7 +41,8 @@ class defense extends rcube_plugin {
     */
     private function isIPinArray($ip, $array) {
         foreach ($array as $value) {
-            if ((strpos($value, '/') === false) && ($ip == $value)) { return true; }
+            // If no slash '/' then its not a CIDR address and we can just string match
+            if ((strpos($value, '/') === false) && (strcmp($ip, $value) == 0)) { return true; }
             if ($this->isIPv4inCIDR($ip, $value)) { return true; }
         }
         return false;
