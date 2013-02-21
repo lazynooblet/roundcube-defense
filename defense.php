@@ -48,7 +48,7 @@ class defense extends rcube_plugin {
         return false;
     }
   /**
-    * Check if IP is within stated CIDR address
+    * Check if IPv4 is within stated CIDR address
     *
     * @param string ip address
     * @param string cidr address
@@ -59,7 +59,7 @@ class defense extends rcube_plugin {
         return ((ip2long($ip) & ~((1 << (32 - $mask)) - 1) ) == ip2long($subnet));
     }
   /**
-    * Check string if it is ipv6
+    * Check string if it is IPv6
     *
     * @param string ip address
     * @return bool
