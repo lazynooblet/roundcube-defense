@@ -31,6 +31,8 @@ class defense extends rcube_plugin {
     // Remote client IP address
     private $ipaddr;
     
+    // Previous ban data
+    private $prevBan;
     
     // Debug log
     private $logfile = 'defense.log';
@@ -198,12 +200,32 @@ class defense extends rcube_plugin {
     *       Return array with record matched, or bool(false) if no match
     */
     private function getPreviousBanData($ip) {
+        // Use cached data if available.
+        if ($this->prevBan) { return $this->prevBan; }
         $query = sprintf("SELECT * FROM %s WHERE ipaddr = '%s' AND type = %d ORDER BY id DESC LIMIT 1", $this->db_table, $ip, 1);
         $result = $this->rc->db->query($query);
         if (!$result) { $this->dbError($query); return false; }
         $this->debug($query . " [" . $result->rowCount() . "]");
-        return ($result->rowCount() > 0 ? $result->fetch() : false);
+        if ($result->rowCount() > 0) {
+            // Set data to cache variable
+            $this->prevBan = $result->fetch();
+        }
+        return $this->prevBan;
     }
+    
+  /**
+    * Convert seconds to human readable duration
+    *
+    * @param int
+    *       duration in seconds
+    * @return string
+    *       human readable duration, ie: 3d7h13m25s
+    */
+    private function secs2hr($secs) {
+        $s = $secs%60; $m = floor(($secs%3600)/60); $h = floor(($secs%86400)/3600); $d = floor(($secs%604800)/86400); $w = floor(($secs%31449600)/604800); $y = floor($secs/31449600);
+        return (($y > 0) ? $y . "y" : "") . (($w > 0) ? $w . "w" : "") . (($d > 0) ? $d . "d" : "") . (($h > 0) ? $h . "h" : "") . (($m > 0) ? $m . "m" : "") . (($s > 0) ? $s . "s" : "");
+    }
+    
     
   /**
     * Constructor, initialization
@@ -216,6 +238,9 @@ class defense extends rcube_plugin {
         
         // load configuration
         $this->load_config();
+        
+        // Set localization (only for login pages)
+        $this->add_texts('localization/', $this->rc->task == 'login');
         
         // set config variables, set defaults
         $this->db_table = $this->rc->config->get('defense_db_table', 'defense');
@@ -275,15 +300,14 @@ class defense extends rcube_plugin {
     }
     
     private function isBanned($ip) {
-        $rTime = (time() - $this->fail_reset); // How far to look back for failed logins
-        $query = sprintf("SELECT count(*) AS n FROM %s WHERE ipaddr = '%s' AND epoch >= %d", $this->db_table, $this->ipaddr, $rTime);
-        $result = $this->rc->db->query($query);
-        if (!$result) { $this->dbError($query); return false; }
-        $this->debug($query . " [" . $result->rowCount() . "]");
-        $row = $result->fetch();
-        if (!$row) { $this->debug("Warning, SQL result empty: $query"); return false; } // No rows? Strange, abort.
-        $this->debug("Found " . $row['n'] . " failed attempts in last " . $this->fail_reset . "s");
-        return (($row['n'] >= $this->fail_max) ? true : false);
+        $row = $this->getPreviousBanData($ip);
+        if ($row) {
+            $data = unserialize($row['data']);
+            $duration = $data['duration'];
+            $timeleft = (($duration + $row['epoch']) - time());
+            if ($timeleft > 0) { return $timeleft; }
+        }
+        return false;
     }
     
   /**
@@ -297,7 +321,7 @@ class defense extends rcube_plugin {
     * 
     */
     public function hookLoginFailed($args) {
-    
+        $this->debug("hookLoginFailed");
         // Log failed login attempt
         $data = array('user' => $args['user']);
         $query = sprintf("INSERT INTO %s (epoch, type, ipaddr, data) VALUES (%d, %d, '%s', '%s')", $this->db_table, time(), 0, $this->ipaddr, serialize($data));
@@ -306,22 +330,25 @@ class defense extends rcube_plugin {
         $this->debug($query . " [" . $result->rowCount() . "]");
 
         // Check if banned now that above record has been updated
-        if ($this->isBanned($this->ipaddr)) {
+        $rTime = (time() - $this->fail_reset); // How far to look back for failed logins
+        $query = sprintf("SELECT count(*) AS n FROM %s WHERE ipaddr = '%s' AND epoch >= %d", $this->db_table, $this->ipaddr, $rTime);
+        $result = $this->rc->db->query($query);
+        if (!$result) { $this->dbError($query); return false; }
+        $this->debug($query . " [" . $result->rowCount() . "]");
+        $row = $result->fetch();
+        if (!$row) { $this->debug("Warning, SQL result empty: $query"); return false; } // No rows? Strange, abort.
+        $this->debug("Found " . $row['n'] . " failed attempts in last " . $this->fail_reset . "s");
+        if (($row['n'] >= $this->fail_max)) {
             $this->debug("IP banned.");
             // This IP is now banned
             $repeat = 0;
             
-            // Check if its been banned before
-            $query = sprintf("SELECT * FROM %s WHERE ipaddr = '%s' AND type = %d ORDER BY id DESC LIMIT 1", $this->db_table, $this->ipaddr, 1);
-            $result = $this->rc->db->query($query);
-            if (!$result) { $this->dbError($query); return; }
-            $this->debug($query . " [" . $result->rowCount() . "]");
             $row = $this->getPreviousBanData($this->ipaddr);
             if ($row) {
                 // IP has been banned before, check if its a recent repeat offender
                 $data = unserialize($row['data']);
-                $this->debug("IP previous ban data: " . $row['data']);
-                // Classed as a repeate offender if IP is banned again after the previous ban duration
+                $this->debug("Previous ban data: " . $row['data']);
+                // Classed as a repeat offender if IP is banned again after the previous ban duration
                 // multiplied by <repeat_multiplier>
                 $bTime = (($data['duration'] * $this->repeat_multiplier) + $row['epoch']); // Multiply previous bantime by multiplier
                 if (time() <= ($bTime > $this->repeat_reset ? $bTime : $this->repeat_reset)) {
@@ -369,9 +396,10 @@ class defense extends rcube_plugin {
             $this->sendForbiddenHeader();
         }
         
-        if ($this->isBanned($this->ipaddr)) {
+        $isBanned = $this->isBanned($this->ipaddr);
+        if ($isBanned) {
             if ($this->ban_httpstatus) { $this->sendForbiddenHeader(); }
-            $this->rc->output->show_message("ip banned", 'error');
+            $this->rc->output->show_message(sprintf($this->gettext('ipbanned'), $this->secs2hr($isBanned)), 'error');
             $this->rc->output->set_env('task', 'login');
             $this->rc->output->send('login');
             die();
