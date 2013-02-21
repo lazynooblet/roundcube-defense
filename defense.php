@@ -126,6 +126,16 @@ class defense extends rcube_plugin {
         return ((preg_match('/^([0-9]{1,3}\.){3}[0-9]{1,3}(\/[0-9]{1,2})?$/', $ip)) ? true : false)
     }
   /**
+    * Write to log stating database error
+    *
+    */
+    private function dbError() {
+        // I can't seem to try/catch database entries so I have no details regarding error
+        $string = "Error communicating with database.";
+        $this->debug($string);
+        write_log('error', 'plugin::defense: ' . $string);
+    }
+  /**
     * Constructor, initialization
     *
     */
@@ -157,6 +167,8 @@ class defense extends rcube_plugin {
         $this->add_hook('template_object_loginform', array($this, 'hookLoginForm'));
         $this->add_hook('authenticate', array($this, 'hookAuthenticate'));
         $this->add_hook('login_failed', array($this, 'hookLoginFailed'));
+        
+        $this->debug("init() complete");
     }
     
   /**
@@ -174,11 +186,13 @@ class defense extends rcube_plugin {
     
         // If IP is listed in whitelist, return unmodified $content
         if ($this->isIPinArray($this->ipaddr, $this->whitelist)) {
+            $this->debug("whitelisted");
             return $content;
         }
         
         // If IP is listed in blacklist, deny access
         if ($this->isIPinArray($this->ipaddr, $this->blacklist)) {
+            $this->debug("blacklisted");
             header('HTTP/1.1 403 Forbidden');
             die();
         }
@@ -209,13 +223,13 @@ class defense extends rcube_plugin {
         $data = array('user' => $args['user']);
         $query = "INSERT INTO " . $this->db_table . " (epoch, type, ipaddr, data) VALUES (?, ?, ?, ?)";
         $result = $this->rc->db->query($query, time(), 0, $this->ipaddr, serialize($data));
-        if (!$result) { write_log('error', 'defense: Error writing to database.'); return; }
+        if (!$result) { $this->dbError(); return; }
         
         // Get number of failed attempts in <fail_reset> seconds
         $rTime = (time() - $this->fail_reset); // How far to look back for failed logins
         $query = "SELECT count(*) AS n FROM " . $this->db_table . " WHERE ipaddr = ? AND epoch >= ?";
         $result = $this->rc->db->query($query, $this->ipaddr, $rTime);
-        if (!$result) { write_log('error', 'defense: Error writing to database.'); return; }
+        if (!$result) { $this->dbError(); return; }
         $row = $result->fetch();
         if (!$row) { return; } // No rows? Strange, abort.
 
@@ -227,7 +241,7 @@ class defense extends rcube_plugin {
             // Check if its been banned before
             $query = "SELECT epoch, data FROM " . $this->db_table . " WHERE ipaddr = ? AND type = 1 ORDER BY id DESC LIMIT 1";
             $result = $this->rc->db->query($query, $this->ipaddr);
-            if (!$result) { write_log('error', 'defense: Error writing to database.'); return; }
+            if (!$result) { $this->dbError(); return; }
             if ($result->rowCount() > 0) {
                 // IP has been banned before, check if its a recent repeat offender
                 $row = $result->fetch();
@@ -246,7 +260,7 @@ class defense extends rcube_plugin {
               );
             $query = "INSERT INTO " . $this->db_table . " (epoch, type, ipaddr, data) VALUES (?, ?, ?, ?)";
             $result = $this->rc->db->query($query, time(), 1, $this->ipaddr, serialize($data));
-            if (!$result) { write_log('error', 'defense: Error writing to database.'); return; }
+            if (!$result) { $this->dbError(); return; }
             return;
         }
 
