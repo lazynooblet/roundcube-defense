@@ -43,7 +43,9 @@ class defense extends rcube_plugin {
         foreach ($array as $value) {
             // If no slash '/' then its not a CIDR address and we can just string match
             if ((strpos($value, '/') === false) && (strcmp($ip, $value) == 0)) { return true; }
-            if ($this->isIPv4inCIDR($ip, $value)) { return true; }
+            if (isIPv6($ip) != isIPv6($value)) { return false; }
+            if ((!isIPv6($ip) && ($this->isIPv4inCIDR($ip, $value))) { return true; }
+            if ((isIPv6($ip) && ($this->isIPv6inCIDR($ip, $value))) { return true; }
         }
         return false;
     }
@@ -59,13 +61,48 @@ class defense extends rcube_plugin {
         return ((ip2long($ip) & ~((1 << (32 - $mask)) - 1) ) == ip2long($subnet));
     }
   /**
+    * Convert IPv6 mask to bytearray
+    *
+    * @param string subnet mask
+    * @return string byte array
+    */
+    private function IPv6MaskToByteArray($subnetMask) {
+        $addr = str_repeat("f", $subnetMask / 4);
+        switch ($subnetMask % 4) {
+            case 0:
+                break;
+            case 1:
+                $addr .= "8";
+                break;
+            case 2:
+                $addr .= "c";
+                break;
+            case 3:
+                $addr .= "e";
+                break;
+        }
+        $addr = str_pad($addr, 32, '0');
+        $addr = pack("H*" , $addr);
+        return $addr;
+    }
+  /**
+    * Check if IPv6 is within stated CIDR address
+    *
+    * @param string subnet mask
+    * @return string byte array
+    */
+    private function isIPv6inCIDR($address, $subnetAddress, $subnetMask) {
+        $binMask = IPv6MaskToByteArray($subnetMask);
+        return ($address & $binMask) == $subnetAddress;
+    }
+  /**
     * Check string if it is IPv6
     *
     * @param string ip address
     * @return bool
     */
     private function isIPv6($ip) {
-        return (((!preg_match('/[\.\/:0-9a-f]/', strtolower($ip))) || (substr_count($ip, ':') < 2)) ? true : false)
+        return (((!preg_match('/^[\.\/:0-9a-f]+$/', strtolower($ip))) || (substr_count($ip, ':') < 2)) ? true : false)
     }
     
   /**
