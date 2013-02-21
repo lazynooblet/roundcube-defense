@@ -131,7 +131,7 @@ class defense extends rcube_plugin {
         return (((!preg_match('/^[\.\/:0-9a-f]+$/', strtolower($ip))) || (substr_count($ip, ':') < 2)) ? true : false);
     }
   /**
-    * Check string if it is IPv6
+    * Check string if it is IPv4
     *
     * @param string
     *       ip address
