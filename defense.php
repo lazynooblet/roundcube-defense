@@ -347,7 +347,7 @@ class defense extends rcube_plugin {
         $this->debug($query . " [" . $result->rowCount() . "]");
         $row = $result->fetch();
         if (!$row) { $this->debug("Warning, SQL result empty: $query"); return false; } // No rows? Strange, abort.
-        $this->debug("Found " . $row['n'] . " failed attempts in last " . $this->fail_reset . "s");
+        $this->debug("Found " . $row['n'] . " failed attempts in last " . (time() - $rTime) . "s");
         if (($row['n'] >= $this->fail_max)) {
             $this->debug("IP banned.");
             // This IP is now banned
