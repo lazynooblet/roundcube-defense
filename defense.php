@@ -131,7 +131,7 @@ class defense extends rcube_plugin {
         return (((!preg_match('/^[\.\/:0-9a-f]+$/', strtolower($ip))) || (substr_count($ip, ':') < 2)) ? true : false);
     }
   /**
-    * Check string if it is IPv6
+    * Check string if it is IPv4
     *
     * @param string
     *       ip address
@@ -347,7 +347,7 @@ class defense extends rcube_plugin {
         $this->debug($query . " [" . $result->rowCount() . "]");
         $row = $result->fetch();
         if (!$row) { $this->debug("Warning, SQL result empty: $query"); return false; } // No rows? Strange, abort.
-        $this->debug("Found " . $row['n'] . " failed attempts in last " . $this->fail_reset . "s");
+        $this->debug("Found " . $row['n'] . " failed attempts in last " . (time() - $rTime) . "s");
         if (($row['n'] >= $this->fail_max)) {
             $this->debug("IP banned.");
             // This IP is now banned
