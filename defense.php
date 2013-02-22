@@ -290,9 +290,9 @@ class defense extends rcube_plugin {
             die();
         }
         
-        if ($this->isBanned($this->ipaddr)) {
-            if ($this->ban_httpstatus) { $this->sendForbiddenHeader(); }
+        if ($this->ban_httpstatus) && ($this->isBanned($this->ipaddr)) {
             $this->debug("IP already banned");
+            $this->sendForbiddenHeader();
         }  
         
         $this->debug("Sending login form.");
