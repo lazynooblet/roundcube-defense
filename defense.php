@@ -46,7 +46,7 @@ class defense extends rcube_plugin {
     */
     private function debug($string) {
         if (!$this->debugEnabled) { return; }
-        write_log($this->logfile, $this->ipaddr . " # " . $string);
+        rcube::write_log($this->logfile, $this->ipaddr . " # " . $string);
     }
   /**
     * Check if IP is matched against all IPs in array,
@@ -148,7 +148,7 @@ class defense extends rcube_plugin {
         // I can't seem to try/catch database entries so I have no details regarding error
         $string = "Error communicating with database.";
         $this->debug($string);
-        write_log('error', 'plugin::defense: ' . $string);
+        rcube::write_log('error', 'plugin::defense: ' . $string);
     }
   /**
     * Return true if IP matches config whitelist
@@ -258,7 +258,7 @@ class defense extends rcube_plugin {
         $this->debugEnabled = $this->rc->config->get('defense_debug_enabled', false);
         
         // set client ip
-        $this->ipaddr = rcmail_remote_ip();
+        $this->ipaddr = rcube_utils::remote_ip();
         
         // Roundcube event hooks
         $this->add_hook('template_object_loginform', array($this, 'hookLoginForm'));
