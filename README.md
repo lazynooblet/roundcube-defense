@@ -35,6 +35,7 @@ Create an issue ticket at https://github.com/inpos/roundcube-defense/issues
 HISTORY
 --------------------
 10.12.2017 -- Version 1.0
+
 21.02.2013 -- Version 0.1
     - initial release, functional, still bug checking
 
