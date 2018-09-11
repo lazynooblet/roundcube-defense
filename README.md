@@ -23,14 +23,14 @@ FEATURES
 INSTALLATION
 --------------------
 1. Change to plugins/ directory
-2. Clone git repository with: git clone https://github.com/inpos/roundcube-defense.git defense
+2. Clone git repository with: git clone https://github.com/stalks/roundcube-defense.git defense
 3. Add 'defense' table to SQL structure by using schema in sql/
 4. Edit config file 'config.inc.php.dist' and save as 'config.inc.php'
 4. Add 'defense' to plugins array at config/main.inc.php
 
 ISSUES
 --------------------
-Create an issue ticket at https://github.com/inpos/roundcube-defense/issues
+Create an issue ticket at https://github.com/stalks/roundcube-defense/issues
 
 HISTORY
 --------------------
