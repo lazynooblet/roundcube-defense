@@ -267,6 +267,14 @@ class defense extends rcube_plugin {
         
     }
     
+    public function deleteExpired() {
+    	$now = time();
+    	$exp_seconds = $this->db_expire * 24 * 60 * 60; // days to seconds
+    	$older_not_expired = $now - $exp_seconds;
+    	$query = sprintf("DELETE FROM %s WHERE epoch < %d;", $this->db_table, $older_not_expired);
+    	$result = $this->rc->db->query($query);
+    }
+    
   /**
     * Hooked function: template_login_form(string)
     *       http://trac.roundcube.net/wiki/Plugin_Hooks#TemplateHooks
@@ -279,6 +287,8 @@ class defense extends rcube_plugin {
     *       Login form HTML content
     */
     public function hookLoginForm($content) {
+    	// Delete expired records
+    	$this->deleteExpired();
         // If IP is listed in whitelist, return unmodified $content
         if ($this->isWhitelisted($this->ipaddr)) {
             return $content;
