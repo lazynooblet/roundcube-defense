@@ -46,7 +46,7 @@ class defense extends rcube_plugin {
     */
     private function debug($string) {
         if (!$this->debugEnabled) { return; }
-        write_log($this->logfile, $this->ipaddr . " # " . $string);
+        rcube::write_log($this->logfile, $this->ipaddr . " # " . $string);
     }
   /**
     * Check if IP is matched against all IPs in array,
@@ -148,7 +148,7 @@ class defense extends rcube_plugin {
         // I can't seem to try/catch database entries so I have no details regarding error
         $string = "Error communicating with database.";
         $this->debug($string);
-        write_log('error', 'plugin::defense: ' . $string);
+        rcube::write_log('error', 'plugin::defense: ' . $string);
     }
   /**
     * Return true if IP matches config whitelist
@@ -258,13 +258,21 @@ class defense extends rcube_plugin {
         $this->debugEnabled = $this->rc->config->get('defense_debug_enabled', false);
         
         // set client ip
-        $this->ipaddr = rcmail_remote_ip();
+        $this->ipaddr = rcube_utils::remote_ip();
         
         // Roundcube event hooks
         $this->add_hook('template_object_loginform', array($this, 'hookLoginForm'));
         $this->add_hook('authenticate', array($this, 'hookAuthenticate'));
         $this->add_hook('login_failed', array($this, 'hookLoginFailed'));
         
+    }
+    
+    public function deleteExpired() {
+    	$now = time();
+    	$exp_seconds = $this->db_expire * 24 * 60 * 60; // days to seconds
+    	$older_not_expired = $now - $exp_seconds;
+    	$query = sprintf("DELETE FROM %s WHERE epoch < %d;", $this->db_table, $older_not_expired);
+    	$result = $this->rc->db->query($query);
     }
     
   /**
@@ -279,6 +287,8 @@ class defense extends rcube_plugin {
     *       Login form HTML content
     */
     public function hookLoginForm($content) {
+    	// Delete expired records
+    	$this->deleteExpired();
         // If IP is listed in whitelist, return unmodified $content
         if ($this->isWhitelisted($this->ipaddr)) {
             return $content;

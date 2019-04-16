@@ -5,7 +5,7 @@ Protects the Roundcube login page from bruteforce login attempts.
 Original concept from the roundcube "security" plugin by Lazlo Westerhof.
 Wanting to fix the shortfalls of that plugin led me to a rewrite.
 
-Requires Roundcube 0.9-beta or higher.
+Requires Roundcube 1.3 or higher.
 
 FEATURES
 -------------------
@@ -34,8 +34,13 @@ Create an issue ticket at https://github.com/stalks/roundcube-defense/issues
 
 HISTORY
 --------------------
+10.12.2017 -- Version 1.0
+
 21.02.2013 -- Version 0.1
     - initial release, functional, still bug checking
 
 ===================
+
 Created by Steve Allison - https://www.nooblet.org/
+
+Forked and upgraded by Inpos
